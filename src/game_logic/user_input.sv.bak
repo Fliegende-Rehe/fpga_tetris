@@ -1,0 +1,84 @@
+`include "defs.vh"
+
+module user_input(
+    input               rst_i,
+    input               main_logic_clk_i,
+
+    // Inputs for the buttons
+    input               btn_left_i,
+    input               btn_right_i,
+    input               btn_up_i,
+    input               btn_down_i,
+    input               btn_new_game_i,
+
+    input               user_event_rd_req_i,
+    output user_event_t user_event_o,
+    output              user_event_ready_o
+);
+
+// Debounced button signals
+wire debounced_left;
+wire debounced_right;
+wire debounced_up;
+wire debounced_down;
+wire debounced_new_game;
+
+// Instantiate the debounce modules for each button
+Debounce debounce_left (
+    .i_Clk(main_logic_clk_i),
+    .i_Switch(btn_left_i),
+    .o_Switch(debounced_left)
+);
+
+Debounce debounce_right (
+    .i_Clk(main_logic_clk_i),
+    .i_Switch(btn_right_i),
+    .o_Switch(debounced_right)
+);
+
+Debounce debounce_up (
+    .i_Clk(main_logic_clk_i),
+    .i_Switch(btn_up_i),
+    .o_Switch(debounced_up)
+);
+
+Debounce debounce_down (
+    .i_Clk(main_logic_clk_i),
+    .i_Switch(btn_down_i),
+    .o_Switch(debounced_down)
+);
+
+Debounce debounce_new_game (
+    .i_Clk(main_logic_clk_i),
+    .i_Switch(btn_new_game_i),
+    .o_Switch(debounced_new_game)
+);
+
+user_event_t wr_event;
+logic        wr_event_val;
+
+always_comb begin
+    wr_event_val = 1'b1;
+
+    if (debounced_new_game) begin
+        wr_event = EV_NEW_GAME;
+        wr_event_val = 1'b1;
+    end else if (debounced_up) begin
+        wr_event = EV_ROTATE;
+        wr_event_val = 1'b1;
+    end else if (debounced_left) begin
+        wr_event = EV_LEFT;
+        wr_event_val = 1'b1;
+    end else if (debounced_right) begin
+        wr_event = EV_RIGHT;
+        wr_event_val = 1'b1;
+    end else if (debounced_down) begin
+        wr_event = EV_DOWN;
+        wr_event_val = 1'b1;
+    end else begin
+        wr_event = EV_DOWN; 
+        wr_event_val = 1'b0;
+    end
+end
+
+endmodule

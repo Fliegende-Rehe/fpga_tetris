@@ -1,0 +1,73 @@
+`include "defs.vh"
+
+module draw_tetris(
+    input clk_vga_i,  // Input from ClockDivider
+    input game_data_t game_data_i,
+
+    // VGA interface
+    output logic vga_hs_o,
+    output logic vga_vs_o,
+    output logic vga_de_o,
+    output logic [7:0] vga_r_o,
+    output logic [7:0] vga_g_o,
+    output logic [7:0] vga_b_o
+);
+
+localparam PIX_WIDTH = 12;
+logic [23:0] field_vga_data_w;
+logic field_vga_data_en_w;
+localparam HDATA_BEGIN = 144; // Horizontal Data Start (after front porch and sync)
+localparam HDATA_END = 784;   // Horizontal Data End (before back porch)
+localparam VDATA_BEGIN = 35;  // Vertical Data Start (after front porch and sync)
+localparam VDATA_END = 515;   // Vertical Data End (before back porch)
+logic [PIX_WIDTH-1:0] pix_x;
+logic [PIX_WIDTH-1:0] pix_y;
+logic [23:0] vga_data;
+
+// Instance of draw_field
+draw_field
+#( 
+    .PIX_WIDTH ( PIX_WIDTH )
+) draw_field (
+    .clk_i ( clk_vga_i ),
+    .pix_x_i ( pix_x ),
+    .pix_y_i ( pix_y ),
+    .game_data_i ( game_data_i ),
+    .vga_data_o ( field_vga_data_w ),
+    .vga_data_en_o ( field_vga_data_en_w )
+);
+
+// Logic to handle vga_data
+always_comb begin
+    vga_data = `COLOR_BACKGROUND;
+    if (field_vga_data_en_w)
+        vga_data = field_vga_data_w;
+end
+
+// Instance of VgaController
+logic [2:0] rgb_in;
+logic [2:0] rgb_out;
+integer hpos;
+integer vpos;
+
+VgaController vga_controller_instance(
+    .clk (clk_vga_i),
+    .rgb_in (rgb_in),
+    .rgb_out (rgb_out),
+    .hsync (vga_hs_o),
+    .vsync (vga_vs_o),
+    .hpos (hpos),
+    .vpos (vpos)
+);
+
+// Convert 24-bit vga_data to 3-bit rgb_in
+always_ff @(posedge clk_vga_i) begin
+    rgb_in <= vga_data[23:21];  // Example conversion, adjust as needed
+    pix_x <= hpos;
+    pix_y <= vpos;
+    { vga_r_o, vga_g_o, vga_b_o } <= vga_data;
+    vga_de_o <= (hpos >= HDATA_BEGIN) && (hpos < HDATA_END) && (vpos >= VDATA_BEGIN) && (vpos < VDATA_END);
+
+end
+
+endmodule
